@@ -1,120 +1,114 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>توقع جنس المولود</title>
+    <title>تصنيف الطفل: بنت أم ولد</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Cairo', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background-color: #f4f4f4;
+            height: 100vh;
         }
         .container {
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
             text-align: center;
         }
-        input[type="file"] {
+        h1 {
+            color: #333;
             margin-bottom: 20px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
         }
-        button {
-            padding: 12px 25px;
-            background-color: #007bff;
+        label {
+            display: block;
+            margin-bottom: 10px;
+            color: #555;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .custom-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007BFF;
             color: white;
-            border: none;
-            border-radius: 4px;
+            border-radius: 5px;
             cursor: pointer;
             font-size: 16px;
         }
-        button:hover {
-            background-color: #0056b3;
+        img {
+            max-width: 100%;
+            margin-top: 20px;
+            border-radius: 10px;
         }
-        #result {
+        #output {
             margin-top: 20px;
             font-size: 18px;
-            font-weight: bold;
+            color: #555;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>توقع جنس المولود بناءً على الصورة</h1>
-        <input type="file" id="imageUpload" accept="image/*">
-        <button id="predictButton" disabled>توقع الآن</button>
-        <div id="result"></div>
+        <h1>تصنيف الطفل: بنت أم ولد</h1>
+        <label for="imageInput" class="custom-button">اختر صورة</label>
+        <input type="file" id="imageInput" accept="image/*">
+        <img id="previewImage" src="" alt="معاينة الصورة" style="display: none;">
+        <div id="output">يرجى اختيار صورة للبدء.</div>
     </div>
-
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script>
+        const URL = "https://teachablemachine.withgoogle.com/models/QQkfzkgoP/";
+
         let model, maxPredictions;
-        const imageUpload = document.getElementById('imageUpload');
-        const predictButton = document.getElementById('predictButton');
-        const resultDiv = document.getElementById('result');
 
+        // تحميل النموذج
         async function init() {
-            const modelURL = './model.json'; // مسار ملف النموذج بعد الرفع
-            const metadataURL = './metadata.json'; // مسار ملف البيانات الوصفية
-
-            try {
-                model = await tmImage.load(modelURL, metadataURL);
-                maxPredictions = model.getTotalClasses();
-                predictButton.disabled = false;
-            } catch (error) {
-                console.error('حدث خطأ أثناء تحميل النموذج:', error);
-                resultDiv.innerText = 'حدث خطأ في تحميل النموذج.';
-            }
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+            document.getElementById("output").textContent = "النموذج جاهز!";
         }
 
-        async function predict() {
-            if (!model) {
-                resultDiv.innerText = 'النموذج لم يتم تحميله بعد.';
-                return;
+        // عرض الصورة
+        const imageInput = document.getElementById("imageInput");
+        const previewImage = document.getElementById("previewImage");
+        const output = document.getElementById("output");
+
+        imageInput.addEventListener("change", async (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImage.src = e.target.result;
+                    previewImage.style.display = "block";
+                };
+                reader.readAsDataURL(file);
+
+                // تحليل الصورة
+                const image = new Image();
+                image.src = URL.createObjectURL(file);
+                image.onload = async () => {
+                    const prediction = await model.predict(image);
+                    const result = prediction[0].probability > prediction[1].probability ? "بنت" : "ولد";
+                    output.textContent = `النتيجة: الطفل ${result}`;
+                };
             }
+        });
 
-            const image = document.getElementById('imageUpload');
-            const prediction = await model.predict(image);
-
-            prediction.sort((a, b) => b.probability - a.probability);
-            const topPrediction = prediction[0];
-
-            if (topPrediction.className === 'ولد') {
-                resultDiv.innerText = `نتوقع أن يكون المولود: ولد (${(topPrediction.probability * 100).toFixed(2)}%)`;
-            } else if (topPrediction.className === 'بنت') {
-                resultDiv.innerText = `نتوقع أن تكون المولودة: بنت (${(topPrediction.probability * 100).toFixed(2)}%)`;
-            } else {
-                resultDiv.innerText = 'لم نتمكن من تحديد الجنس بدقة.';
-            }
-        }
-
-        import('@teachablemachine/image')
-            .then((tmImage) => {
-                // تهيئة النموذج عند تحميل الصفحة
-                init();
-
-                imageUpload.addEventListener('change', () => {
-                    if (imageUpload.files && imageUpload.files[0]) {
-                        predictButton.disabled = false;
-                    } else {
-                        predictButton.disabled = true;
-                        resultDiv.innerText = '';
-                    }
-                });
-
-                predictButton.addEventListener('click', predict);
-            })
-            .catch((error) => {
-                console.error('حدث خطأ أثناء تحميل مكتبة Teachable Machine:', error);
-                resultDiv.innerText = 'حدث خطأ في تحميل مكتبة النموذج.';
-            });
+        // استدعاء التهيئة عند تحميل الصفحة
+        init();
     </script>
 </body>
 </html>
