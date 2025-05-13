@@ -37,7 +37,7 @@
         input[type="file"] {
             display: none;
         }
-        .custom-button {
+        .custom-button, .analyze-button {
             display: inline-block;
             padding: 10px 20px;
             background-color: #007BFF;
@@ -45,6 +45,7 @@
             border-radius: 5px;
             cursor: pointer;
             font-size: 16px;
+            margin-top: 10px;
         }
         img {
             max-width: 100%;
@@ -64,6 +65,7 @@
         <label for="imageInput" class="custom-button">اختر صورة</label>
         <input type="file" id="imageInput" accept="image/*">
         <img id="previewImage" src="" alt="معاينة الصورة" style="display: none;">
+        <button id="analyzeButton" class="analyze-button" style="display: none;">تحليل الصورة</button>
         <div id="output">يرجى اختيار صورة للبدء.</div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
@@ -84,26 +86,33 @@
         // عرض الصورة
         const imageInput = document.getElementById("imageInput");
         const previewImage = document.getElementById("previewImage");
+        const analyzeButton = document.getElementById("analyzeButton");
         const output = document.getElementById("output");
+        let selectedImage;
 
-        imageInput.addEventListener("change", async (event) => {
+        imageInput.addEventListener("change", (event) => {
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     previewImage.src = e.target.result;
                     previewImage.style.display = "block";
+                    analyzeButton.style.display = "inline-block";
+                    selectedImage = new Image();
+                    selectedImage.src = e.target.result;
                 };
                 reader.readAsDataURL(file);
+            }
+        });
 
-                // تحليل الصورة
-                const image = new Image();
-                image.src = URL.createObjectURL(file);
-                image.onload = async () => {
-                    const prediction = await model.predict(image);
-                    const result = prediction[0].probability > prediction[1].probability ? "بنت" : "ولد";
-                    output.textContent = `النتيجة: الطفل ${result}`;
-                };
+        // تحليل الصورة عند الضغط على الزر
+        analyzeButton.addEventListener("click", async () => {
+            if (selectedImage) {
+                const prediction = await model.predict(selectedImage);
+                const result = prediction[0].probability > prediction[1].probability ? "بنت" : "ولد";
+                output.textContent = `النتيجة: الطفل ${result}`;
+            } else {
+                output.textContent = "يرجى اختيار صورة أولاً.";
             }
         });
 
